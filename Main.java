@@ -1,31 +1,56 @@
+import java.io.FileReader;
+import java.util.Map;
+import java.util.HashMap;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonArray;
+
 public class Main {
     public static void main(String[] args) {
         ReseauRecouvrement reseau = new ReseauRecouvrement();
 
-        /* Création des applications cibles */
-        ApplicationCible app1 = new ApplicationCible("App1", "192.168.1.1", 5000, "Texte");
-        ApplicationCible app2 = new ApplicationCible("App2", "192.168.1.2", 5001, "Image");
-        ApplicationCible app3 = new ApplicationCible("App3", "192.168.1.3", 5002, "Vidéo");
+        try {
+            // Lire le fichier JSON
+            Gson gson = new Gson();
+            JsonObject jsonObject = gson.fromJson(new FileReader("reseau.json"), JsonObject.class);
 
-        /*applications de recouvrement */
-        ApplicationRecouvrement rec1 = new ApplicationRecouvrement("Rec1", "192.168.1.4", 5003, "Multiprotocole");
-        ApplicationRecouvrement rec2 = new ApplicationRecouvrement("Rec2", "192.168.1.5", 5004, "Multiprotocole");
+            // Lire les applications
+            JsonArray applications = jsonObject.getAsJsonArray("applications");
+            Map<String, ApplicationCible> appMap = new HashMap<>();
+            for (int i = 0; i < applications.size(); i++) {
+                JsonObject app = applications.get(i).getAsJsonObject();
+                String id = app.get("id").getAsString();
+                String ip = app.get("ip").getAsString();
+                int port = app.get("port").getAsInt();
+                String type = app.get("type").getAsString();
 
-        /*ajout des applications au réseau */ 
-        reseau.ajouterApplication(app1);
-        reseau.ajouterApplication(app2);
-        reseau.ajouterApplication(app3);
-        reseau.ajouterApplication(rec1);
-        reseau.ajouterApplication(rec2);
+                ApplicationCible application;
+                if (type.equals("Multiprotocole")) {
+                    application = new ApplicationRecouvrement(id, ip, port, type);
+                } else {
+                    application = new ApplicationCible(id, ip, port, type);
+                }
+                appMap.put(id, application);
+                reseau.ajouterApplication(application);
+            }
 
-        /*Connexions statiques */ 
-        reseau.connecter("App1", "Rec1", 5);
-        reseau.connecter("App2", "Rec1", 7);
-        reseau.connecter("Rec1", "Rec2", 3);
-        reseau.connecter("Rec2", "App3", 6);
+            // Lire les connexions
+            JsonArray connexions = jsonObject.getAsJsonArray("connexions");
+            for (int i = 0; i < connexions.size(); i++) {
+                JsonObject connexion = connexions.get(i).getAsJsonObject();
+                String source = connexion.get("source").getAsString();
+                String destination = connexion.get("destination").getAsString();
+                int metrique = connexion.get("metrique").getAsInt();
 
-        /* Affichage du réseau */
-        System.out.println("\n=== État du réseau ===");
-        reseau.afficherReseau();
+                reseau.connecter(source, destination, metrique);
+            }
+
+            // Affichage du réseau
+            System.out.println("\n=== État du réseau ===");
+            reseau.afficherReseau();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
